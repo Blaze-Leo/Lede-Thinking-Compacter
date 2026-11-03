@@ -1,4 +1,4 @@
-# Lede-Thinker — compress a model's thinking
+# Lede-Thinking-Compacter — compress a model's thinking
 
 A self-contained blackbox for compressing an AI agent's chain-of-thought (CoT).
 Two CLIs take raw thinking text in (`--text` or `stdin`) and write compressed text
