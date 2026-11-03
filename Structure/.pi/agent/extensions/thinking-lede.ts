@@ -331,6 +331,73 @@ function hashThinking(value: string): string {
     .digest("hex");
 }
 
+/**
+ * Remove Markdown fenced code blocks before sending thinking to LEDE.
+ *
+ * A fence is a line-start run of at least three backticks or tildes,
+ * preceded by at most three spaces. A closing fence must use the same
+ * character, be at least as long as the opener, and contain only
+ * trailing whitespace after the fence.
+ *
+ * If thinking ends while a fence is open, the rest of the text is
+ * discarded. This handles an interrupted code-generation block.
+ */
+function removeFencedCodeBlocks(value: string): string {
+  // Keep line endings so the removed block can be replaced by one blank line.
+  // Handle LF, CRLF, and CR input without normalizing surrounding text.
+  const lines = value.match(/[^\r\n]*(?:\r\n|\n|\r|$)/g) ?? [];
+  const kept: string[] = [];
+  let openFence: { character: string; length: number } | undefined;
+
+  for (const line of lines) {
+    if (!line) continue;
+
+    const content = line.replace(/(?:\r\n|\n|\r)$/, "");
+    const lineEnding = line.slice(content.length);
+
+    if (!openFence) {
+      const marker = /^ {0,3}(`{3,}|~{3,})/.exec(content);
+      if (!marker) {
+        kept.push(line);
+        continue;
+      }
+
+      const fence = marker[1];
+      const info = content.slice(marker[0].length);
+
+      // CommonMark disallows backticks in a backtick-fence info string.
+      if (fence[0] === "`" && info.includes("`")) {
+        kept.push(line);
+        continue;
+      }
+
+      openFence = {
+        character: fence[0],
+        length: fence.length,
+      };
+
+      // Replace the entire fenced block with one blank line so surrounding
+      // prose stays separated without inserting any replacement text.
+      if (lineEnding) kept.push(lineEnding);
+      continue;
+    }
+
+    const closing = /^ {0,3}(`+|~+)[ \t]*$/.exec(content);
+    if (
+      closing &&
+      closing[1][0] === openFence.character &&
+      closing[1].length >= openFence.length
+    ) {
+      openFence = undefined;
+    }
+    // Discard all code and fence lines while a fence is open.
+  }
+
+  // An unclosed fence leaves the blank line inserted above and discards
+  // everything from its opener through EOF (interrupted generation).
+  return kept.join("");
+}
+
 function safeSessionId(sessionId: string): string {
   return sessionId.replace(
     /[^a-zA-Z0-9_-]/g,
@@ -449,6 +516,13 @@ function compressThinking(
   originalThinking: string,
   settings: Settings,
 ): Promise<CompressionResult> {
+  // Cache identity remains based on originalThinking; only compressor input
+  // is sanitized. If no prose remains, skip the subprocess entirely.
+  const compressorInput = removeFencedCodeBlocks(originalThinking);
+  if (!compressorInput.trim()) {
+    return Promise.resolve({ status: "unchanged" });
+  }
+
   return new Promise((resolve) => {
     const args = [
       COMPRESSOR_SCRIPT,
@@ -566,7 +640,7 @@ function compressThinking(
       });
     });
 
-    child.stdin.end(originalThinking, "utf8");
+    child.stdin.end(compressorInput, "utf8");
   });
 }
 
@@ -1170,7 +1244,7 @@ export default function (pi: ExtensionAPI) {
       ctx.ui.notify(
         state.forceCompactAll
           ? "Some thinking blocks failed to compress. Run the command again to retry. Unchanged blocks were left as-is."
-          : "All processable historical thinking blocks have been compressed and cached with LEDE.",
+          : "All eligible historical thinking blocks have been compressed and cached with LEDE.",
         "info",
       );
     },
