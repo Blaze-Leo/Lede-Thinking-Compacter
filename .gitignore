@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+build/
+dist/
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Per-developer agent / tooling config (Claude Code, etc.)
+# These files often contain machine-local paths and per-machine permission
+# allowlists that should not be shared.
+.claude/
+!.claude/agents/
+!.claude/commands/
+
+# Skill output (research/audit artifacts — point-in-time, not source).
+# Per the skill-output-hygiene rule. Never commit these to a public repo.
+skill-output/
+
+# Secrets — defensive, even though none exist today
+.env
+.env.*
+!.env.example
+.openai
+.openai.*
+.anthropic
+.anthropic.*
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+id_rsa
+id_ed25519
+credentials*.json
+secrets*.json
+
+# Terraform / IaC state
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+
+# OS cruft
+.DS_Store
+Thumbs.db
