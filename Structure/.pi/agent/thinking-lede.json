@@ -1,0 +1,10 @@
+{
+  "pythonExecutable": "python3",
+  "maxThinkingTokens": 500,
+  "charsPerToken": 4,
+  "target": 0.20,
+  "dedup": 0.85,
+  "headFrac": 0.15,
+  "tailFrac": 0.25,
+  "timeoutMs": 120000
+}
